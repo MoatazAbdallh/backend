@@ -14,7 +14,9 @@ var UserSchema = new mongoose.Schema({
     address: String,
     active: Boolean,
     role: String
-});
+},
+{ collection: "User" }
+    );
 
 // Export the Mongoose model
 module.exports = mongoose.model('User', UserSchema);

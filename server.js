@@ -20,13 +20,12 @@ var app = express();
 var bodyParser = require('body-parser');
 var morgan = require('morgan');
 var mongoose = require('mongoose');
-var Db = require('mongodb').Db;
-var MongoClient = require('mongodb').MongoClient;
+var base64 = require('base-64');
 var jwt = require('jsonwebtoken'); // used to create, sign, and verify tokens
 var config = require('./config'); // get our config file
 // get our mongoose models
 var User = require('./models/User');
-
+var authenticateService = require('./services/authenticate');
 
 mongoose.connect(config.database);
 var db = mongoose.connection;
@@ -67,80 +66,72 @@ app.get('/', function (req, res) {
     res.send('Hello! The API is at http://localhost:' + port + '/api');
 });
 
-app.post('/users', function (req, res) {
-
-    User.find({}).toArray(function (err, users) {
-        res.json({
-            errorCode: 0,
-            errorMessage: "",
-            data: {
-                users: users
-            }
+app.get('/users', function (req, res) {
+    authenticateService.getUsers().then(
+        function (data) {
+            res.json({
+                errorCode: 0,
+                errorMessage: "",
+                data: data
+            });
+        }, function (err) {
+            res.json({
+                errorCode: 1,
+                errorMessage: err.message,
+                data: null
+            });
         });
-    });
-
 });
 app.post('/register', function (req, res) {
-    DB.collection('User', function (err, collection) {
-        collection.insert({
-            first_name: req.body.first_name,
-            last_name: req.body.last_name,
-            email: req.body.email,
-            password: req.body.password,
-            mobile: req.body.mobile,
-            nick_name: req.body.nick_name,
-            address: req.body.address
-        });
-        collection.find({ email: req.body.email }).toArray(function (err, user) {
-            var token = jwt.sign(user, app.get('superSecret'), {
+    authenticateService.createUser(req.body).then(
+        function (data) {
+            var token = jwt.sign("Basic " + base64.encode(new Buffer(data.email + ':' + data.password)), app.get('superSecret'), {
                 expiresInMinutes: 1440 // expires in 24 hours
             });
-
-            // return the information including token as JSON
             res.json({
                 errorCode: 0,
                 errorMessage: "",
                 data: {
-                    user: user[0],
-                    message: 'Enjoy your token!',
-                    token: token
+                    user: data,
+                    token:token
                 }
             });
-        })
-    })
-})
-app.post('/authenticate', function (req, res) {
-    //console.log(req.body);
-    
-        User.find({ email: req.body.email }).toArray(function (err, user) {
-            console.log(user);
-            if (user.length == 0)
-                res.json({ data: null, errorCode: 1, errorMessage: 'Authentication failed. User not found.' });
-            else if (user)
-                // check if password matches
-                if (user[0].password != req.body.password) {
-                    res.json({ data: null, errorCode: 1, errorMessage: 'Authentication failed. Wrong password.' });
-                }
-                else {
-                    // if user is found and password is right
-                    // create a token
-                    var token = jwt.sign(user, app.get('superSecret'), {
-                        expiresInMinutes: 1440 // expires in 24 hours
-                    });
+        },
+        function (err) {
+            res.json({
+                errorCode: 1,
+                errorMessage: err.message,
+                data: null
+            });
+        }
+        );
 
-                    // return the information including token as JSON
-                    res.json({
-                        errorCode: 0,
-                        errorMessage: "",
-                        data: {
-                            user: user[0],
-                            message: 'Enjoy your token!',
-                            token: token
-                        }
-                    });
-                }
-        });
-    
+})
+app.post('/login', function (req, res) {
+
+    authenticateService.getUserByEmail(req.body.email, req.body.password).then(
+        function (data) {
+            if (data)
+                res.json({
+                    errorCode: 0,
+                    errorMessage: "",
+                    data: data
+                });
+            else
+                res.json({
+                    errorCode: 1,
+                    errorMessage: "Invalid Username / Password",
+                    data: null
+                });
+        },
+        function (err) {
+            res.json({
+                errorCode: 1,
+                errorMessage: err.message,
+                data: null
+            });
+        }
+        );
 });
 //Create Missions
 app.post('/create-mission', function (req, res) {
