@@ -1,5 +1,5 @@
 ﻿var $q = require('q')
-var User = require('../models/User');
+var User = require('../models/user');
 var jwt = require('jsonwebtoken'); // used to create, sign, and verify tokens
 var base64 = require('base-64');
 
