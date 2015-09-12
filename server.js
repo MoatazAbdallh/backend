@@ -24,8 +24,8 @@ var base64 = require('base-64');
 var jwt = require('jsonwebtoken'); // used to create, sign, and verify tokens
 var config = require('./config'); // get our config file
 // get our mongoose models
-var User = require('./models/User');
-//var authenticateService = require('./services/authenticate');
+var User = require('./models/user');
+var authenticateService = require('./services/authenticate');
 
 mongoose.connect(config.database);
 var db = mongoose.connection;
